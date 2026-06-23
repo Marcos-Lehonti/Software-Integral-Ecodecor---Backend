@@ -171,3 +171,83 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ message: 'Error al eliminar usuario' });
   }
 };
+
+
+
+// GET /api/users/:id
+// VULNERABLE A BROKEN ACCESS CONTROL
+
+exports.getUserByIdVulnerable = async (req, res) => {
+
+  const userId = req.params.id;
+
+  try {
+
+    // SIN VALIDAR PROPIEDAD NI ROL
+    const user = await User.findByPk(userId, {
+      attributes: ['id', 'name', 'email', 'role']
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // CUALQUIER USUARIO PUEDE VER OTRO USUARIO
+    res.json(user);
+
+  } catch (error) {
+
+    logger.error(error.message);
+
+    res.status(500).json({
+      message: 'Error'
+    });
+
+  }
+
+};
+
+
+//VERSION SEGURA: 
+
+exports.getUserByIdSecure = async (req, res) => {
+
+  const userId = parseInt(req.params.id);
+
+  try {
+
+    // SOLO ADMIN O DUEÑO
+    if (
+      req.user.role !== 'administrador' &&
+      req.user.id !== userId
+    ) {
+      return res.status(403).json({
+        message: 'Acceso denegado'
+      });
+    }
+
+    const user = await User.findByPk(userId, {
+      attributes: ['id', 'name', 'email', 'role']
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.json(user);
+
+  } catch (error) {
+
+    logger.error(error.message);
+
+    res.status(500).json({
+      message: 'Error'
+    });
+
+  }
+
+};

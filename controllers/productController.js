@@ -1,4 +1,4 @@
-const { Product, ProductStock } = require('../models');
+const { Product, ProductStock, InventoryMovement} = require('../models');
 const logger = require('../logger');
 
 const VALID_CATEGORIES = ['machiato', 'ecopaper', 'practstone'];
@@ -42,11 +42,26 @@ exports.createProduct = async (req, res) => {
     if (stock && Array.isArray(stock)) {
       for (const s of stock) {
         if (!VALID_WAREHOUSES.includes(s.warehouseName)) continue;
-        await ProductStock.create({
+
+        const newStock = await ProductStock.create({
           productId: product.id,
           warehouseName: s.warehouseName,
           quantity: s.quantity ?? 0,
         });
+
+        if ((s.quantity ?? 0) > 0) {
+          await InventoryMovement.create({
+            productId:       product.id,
+            warehouseName:   s.warehouseName,
+            type:            'ingreso',
+            quantity:        s.quantity,
+            reason:          'registro_manual',
+            referenceId:     null,
+            referenceNumber: null,
+            createdBy:       req.user.id,
+            stockAfter:      parseFloat(s.quantity),
+          });
+        }
       }
     }
 
@@ -164,7 +179,25 @@ exports.updateStock = async (req, res) => {
       defaults: { productId: req.params.id, warehouseName, quantity: 0 },
     });
 
+    const prevQuantity = parseFloat(stock.quantity);
+
     await stock.update({ quantity });
+
+    const diff = parseFloat(quantity) - prevQuantity;
+
+    if (diff !== 0) {
+      await InventoryMovement.create({
+        productId:       req.params.id,
+        warehouseName:   warehouseName,
+        type:            diff > 0 ? 'ingreso' : 'salida',
+        quantity:        Math.abs(diff),
+        reason:          'ajuste_manual',
+        referenceId:     null,
+        referenceNumber: null,
+        createdBy:       req.user.id,
+        stockAfter:      parseFloat(quantity),
+      });
+    }
 
     logger.info(`📦 Stock actualizado — Producto ID: ${req.params.id}, Almacén: ${warehouseName}, Cantidad: ${quantity}`);
     res.json({ message: 'Stock actualizado correctamente', stock });

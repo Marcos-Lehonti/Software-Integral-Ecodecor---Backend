@@ -15,4 +15,21 @@ router.put('/:id/role', authMiddleware, authorize('update', 'User'), userControl
 // 🧨 ELIMINAR USUARIO
 router.delete('/:id', authMiddleware, authorize('delete', 'User'), userController.deleteUser);
 
+
+// ==========================================
+// RUTA VULNERABLE (DEMO)
+// ==========================================
+router.get(
+  '/vulnerable/:id',
+  userController.getUserByIdVulnerable
+);
+// ==========================================
+// RUTA SEGURA (DEMO)
+// ==========================================
+router.get(
+  '/secure/:id',
+  authMiddleware,
+  userController.getUserByIdSecure
+);
+
 module.exports = router;

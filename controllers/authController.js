@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
     return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
   }
 
-  // ✅ Validar rol (si viene en la solicitud)
+  // Validar rol (si viene en la solicitud)
   if (role && !VALID_ROLES.includes(role)) {
     return res.status(400).json({
       message: `Rol no válido. Roles permitidos: ${VALID_ROLES.join(', ')}`
@@ -28,7 +28,7 @@ exports.register = async (req, res) => {
   try {
     const existingEmail = await User.findOne({ where: { email } });
     if (existingEmail) {
-      logger.warn(`⚠️ Email ya registrado: ${email}`);
+      logger.warn(`Email ya registrado: ${email}`);
       return res.status(400).json({ message: 'El correo ya está registrado' });
     }
 
@@ -38,13 +38,13 @@ exports.register = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: role || 'supervisor', // 👈 AQUÍ el cambio clave
+      role: role || 'supervisor',
     });
 
-    logger.info(`✅ Usuario registrado: ${email}`);
+    logger.info(`Usuario registrado: ${email}`);
     res.status(201).json({ message: 'Usuario registrado correctamente' });
   } catch (error) {
-    logger.error(`❌ register: ${error.message}`);
+    logger.error(`register: ${error.message}`);
     res.status(500).json({ message: 'Error al registrar' });
   }
 };
@@ -60,13 +60,13 @@ exports.login = async (req, res) => {
   try {
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      logger.warn(`⚠️ Usuario no encontrado: ${email}`);
+      logger.warn(`Usuario no encontrado: ${email}`);
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      logger.warn(`⚠️ Contraseña incorrecta: ${email}`);
+      logger.warn(`Contraseña incorrecta: ${email}`);
       return res.status(401).json({ message: 'Contraseña incorrecta' });
     }
 
@@ -76,7 +76,7 @@ exports.login = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    logger.info(`✅ Login exitoso: ${email}`);
+    logger.info(`Login exitoso: ${email}`);
     res.json({
       message: 'Login exitoso',
       token,
@@ -88,7 +88,52 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(`❌ login: ${error.message}`);
+    logger.error(`login: ${error.message}`);
     res.status(500).json({ message: 'Error al iniciar sesión' });
   }
+};
+
+// LOGIN VULNERABLE SOLO PARA PRUEBAS
+const sequelize = require('../config/db');
+
+exports.loginVulnerable = async (req, res) => {
+
+  const { email } = req.body;
+
+  try {
+
+    // SUPER VULNERABLE
+    const query = `
+      SELECT * FROM Users
+      WHERE email = '${email}'
+    `;
+
+    logger.warn(`Ejecutando query vulnerable: ${query}`);
+
+    const [results] = await sequelize.query(query);
+
+    if (results.length > 0) {
+
+      return res.status(200).json({
+        message: 'Login vulnerable exitoso',
+        token: 'fake-jwt-token',
+        user: results[0]
+      });
+
+    }
+
+    return res.status(401).json({
+      message: 'Credenciales incorrectas'
+    });
+
+  } catch (error) {
+
+    logger.error(`loginVulnerable: ${error.message}`);
+
+    return res.status(500).json({
+      message: 'Error en login vulnerable'
+    });
+
+  }
+
 };
