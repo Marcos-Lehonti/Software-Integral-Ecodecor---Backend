@@ -19,7 +19,7 @@ const app = express();
 
 // CORS
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://ecodecor-three.vercel.app'],
+  origin: ['http://localhost:5173', 'https://ecodecor-three.vercel.app', 'https://ecodecormrp.vercel.app'],
   credentials: true
 }));
 
